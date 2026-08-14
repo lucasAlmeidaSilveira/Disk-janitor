@@ -5,287 +5,276 @@
 <h1 align="center">Disk Janitor</h1>
 
 <p align="center">
-  App macOS local para diagnosticar e limpar disco por categorias, com tiers de segurança e fluxo <em>preview → confirmar</em>.<br/>
-  Nada é apagado direto — tudo vai pra Lixeira, restaurável enquanto ela não for esvaziada.
+  Limpeza de disco no macOS com tiers de segurança, preview obrigatório e envio pra Lixeira — nunca <code>rm -rf</code>.
+</p>
+
+<p align="center">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black" />
+  <img alt="Electron" src="https://img.shields.io/badge/Electron-34-47848F?logo=electron&logoColor=white" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white" />
+  <img alt="Status" src="https://img.shields.io/badge/status-personal%20project-blueviolet" />
 </p>
 
 ---
 
 ## Sumário
 
-- [Visão geral](#visão-geral)
-- [Categorias](#categorias)
+- [O que faz](#o-que-faz)
+- [Instalar](#instalar)
 - [Como usar](#como-usar)
-- [Arquitetura](#arquitetura)
-- [Modelo de segurança](#modelo-de-segurança)
-- [Estender: adicionar uma categoria](#estender-adicionar-uma-categoria)
-- [Stack](#stack)
+- [Categorias](#categorias)
+- [Como fica seguro](#como-fica-seguro)
+- [Desenvolvimento](#desenvolvimento)
+- [Tech stack](#tech-stack)
 - [Roadmap](#roadmap)
+- [Licença](#licença)
 
 ---
 
-## Visão geral
+## O que faz
 
-O app resolve um problema recorrente: ver rapidamente **onde está indo o espaço** do SSD e limpar com confiança. Diferente de "limpadores mágicos", aqui você:
+Resolve o problema clássico de "onde foi meu espaço em disco?" e permite limpar **com confiança**:
 
-1. Escaneia por categoria (sem tocar em nada)
-2. Vê item por item (path, tamanho, última modificação)
-3. Seleciona o que quer
-4. **Preview** antes de qualquer ação
-5. Envia pra Lixeira (nunca `rm -rf`)
-6. Histórico e disco atualizam sozinhos
-
-Cada categoria carrega um **tier de segurança** que orienta a decisão:
-
-| Tier | Cor | Significado |
-|---|---|---|
-| 🟢 `safe` | verde | Caches ou dados regeneráveis. Nenhum login é perdido. |
-| 🟡 `caution` | amarelo | Pode invalidar sessões locais ou cache offline de apps. |
-| 🔴 `review` | vermelho | Envolve arquivos pessoais. Revisar 1 a 1. |
+- **Diagnóstico por categoria** — caches de browsers, ferramentas de dev, Docker, wallpapers, apps não usados, arquivos grandes...
+- **Tiers de segurança** — cada categoria é marcada como 🟢 safe, 🟡 caution ou 🔴 review
+- **Preview obrigatório** — nada é apagado sem você ver a lista final e confirmar
+- **Lixeira, sempre** — todos os deletes vão pra Lixeira do macOS; restauráveis enquanto ela não for esvaziada
+- **Histórico** — cada limpeza é logada (categoria, bytes liberados, timestamp, itens)
 
 ---
 
-## Categorias
+## Instalar
 
-### 🟢 Safe (4)
-- **Caches de browsers e apps** — Spotify, Arc, Chrome, updaters (Figma/Beekeeper/Gather), Playwright, TypeScript, CloudKit
-- **Ferramentas de dev** — pnpm store, npm cache, `~/.cache`, Gradle caches
-- **Docker** — `Docker.raw` (informativo, sparse file) + estimativa de `docker system prune -a --volumes`
-- **Wallpapers dinâmicos (aerials)** — vídeos `.mov` em `~/Library/Application Support/com.apple.wallpaper/aerials/videos`. **Preserva o wallpaper ativo** (detectado via `Store/Index.plist`).
+### Opção A — Build local (recomendado)
 
-### 🟡 Caution (2)
-- **Caches de apps Electron** — cirúrgico por app: só as subpastas `Cache`, `Code Cache`, `GPUCache`, `DawnCache`, `Service Worker/CacheStorage`, `Service Worker/ScriptCache`. Preserva `Local Storage`, `IndexedDB`, `Cookies`, logins e dados do usuário. Apps: Claude, Cursor, VS Code, Discord, Notion, Figma, GatherV2, ChatGPT Atlas.
-- **Downloads antigos** — `.dmg`, `.pkg`, `.iso`, `.zip`, `.tar.gz`, `.xz` em `~/Downloads` com `mtime > 30 dias`.
+**Requisitos:** macOS Sonoma+ em Apple Silicon, Node ≥ 20, pnpm ≥ 9.
 
-### 🔴 Review (2)
-- **Apps não abertos há tempos** — `/Applications/*.app` sem uso há mais de 180 dias (via `mdls -name kMDItemLastUsedDate`).
-- **Arquivos grandes** — top 30 arquivos `> 500 MB` no `$HOME` (via `mdfind`), excluindo `node_modules/`, `.git/`, `.venv/`, `venv/`, `__pycache__/`, bundles (`*.app`, `*.photoslibrary`, `*.musiclibrary`, `*.imovielibrary`, `*.framework`, `*.bundle`, `*.kext`, `*.pkg`), `Library/Containers/com.docker.docker/` e `Library/CloudStorage/`.
+```bash
+git clone https://github.com/<seu-user>/disk-janitor.git
+cd disk-janitor
+pnpm install
+pnpm dist
+codesign --deep --force --sign - "dist/mac-arm64/Disk Janitor.app"
+ditto "dist/mac-arm64/Disk Janitor.app" "/Applications/Disk Janitor.app"
+open "/Applications/Disk Janitor.app"
+```
+
+### Opção B — `.app` pronto
+
+Arraste `Disk Janitor.app` pra `/Applications/` e abra pelo Launchpad ou Spotlight.
+
+**Primeira abertura**: se o macOS reclamar de "desenvolvedor não verificado" (Gatekeeper), clique direito no app → **Abrir** → confirmar. Só precisa uma vez.
 
 ---
 
 ## Como usar
 
-### Rodar via app instalado
-Se já está em `/Applications/`, é só abrir pelo Launchpad / Spotlight / Finder.
+### 1. Diagnóstico
+Ao abrir, você vê o **gauge do disco** (usado/livre/porcentagem, com cor por saturação) e um grid de categorias.
 
-### Onde ficam os dados do próprio app
-```
-~/Library/Application Support/disk-janitor/history.jsonl   # log de limpezas
-```
+- Clique **"Escanear categorias seguras"** pra rodar todas as 🟢 em paralelo.
+- Ou clique **"Escanear"** dentro de um card específico.
+
+Categorias 🟡 e 🔴 **nunca rodam sem sua ação explícita**.
+
+### 2. Explorar uma categoria
+Clique **"Ver"** num card com resultados. A tela mostra:
+- Cada item com **label, path completo, tamanho** e uma **nota** (o que preserva ou apaga)
+- Uma **explicação do tier** no topo (o que aquele nível de risco significa na prática)
+
+### 3. Selecionar
+Marque as checkboxes dos itens que quiser limpar. Use o checkbox no header pra selecionar tudo. O rodapé mostra **quantos itens** e o **total em bytes**.
+
+### 4. Preview
+Clique **"Enviar para Lixeira"**. Um diálogo mostra a lista final + total agregado, com **Cancelar** ou **Confirmar e limpar**.
+
+### 5. Limpeza
+Após confirmar, um overlay mostra progresso em tempo real:
+- Item atual sendo processado
+- Barra de progresso
+- Bytes liberados até o momento
+
+Ao terminar, um toast confirma o resultado. O gauge do disco e o scan da categoria atualizam sozinhos.
+
+### 6. Histórico
+Botão **"Histórico"** no header do dashboard abre um painel lateral com as últimas limpezas: categoria, bytes liberados, timestamp, itens com sucesso/falha.
+
+### 7. Se se arrepender
+Abra a **Lixeira** do macOS → botão direito no item → **Colocar de volta**. Funciona pra qualquer coisa que o app tenha enviado pra Lixeira e que ela ainda não tenha sido esvaziada.
 
 ---
 
-## Fluxo de trabalho — depois de fazer alterações
+## Categorias
 
-Dois cenários. Escolha pela **frequência da mudança**.
+### 🟢 Safe — nenhum login perdido, dados regeneráveis
+| Categoria | O que faz |
+|---|---|
+| **Caches de browsers e apps** | Spotify, Arc, Chrome, updaters (Figma/Beekeeper/Gather), Playwright, TypeScript, CloudKit |
+| **Ferramentas de dev** | pnpm store, npm cache, `~/.cache`, Gradle |
+| **Docker** | Info sobre `Docker.raw` (sparse) + estimativa de `docker system prune -a --volumes` |
+| **Wallpapers dinâmicos** | Vídeos aerials em `~/Library/Application Support/com.apple.wallpaper/aerials/videos` — **preserva o wallpaper ativo** |
 
-### A) Iterando código (várias mudanças por minuto)
-Use dev — HMR do renderer, rebuild automático de main/preload.
+### 🟡 Caution — pode invalidar sessão local ou cache offline
+| Categoria | O que faz |
+|---|---|
+| **Caches de apps Electron** | Cirúrgico por app: só `Cache`, `Code Cache`, `GPUCache`, `DawnCache`, `Service Worker/CacheStorage` de Claude, Cursor, VS Code, Discord, Notion, Figma, GatherV2, ChatGPT Atlas. **Preserva login, cookies, IndexedDB e dados do usuário.** |
+| **Downloads antigos** | `.dmg`, `.pkg`, `.iso`, `.zip`, `.tar.gz`, `.xz` em `~/Downloads` com mais de 30 dias |
 
+### 🔴 Review — envolve arquivos pessoais, revisar item a item
+| Categoria | O que faz |
+|---|---|
+| **Apps não abertos há tempos** | `/Applications/*.app` sem uso há mais de 180 dias (via `mdls -name kMDItemLastUsedDate`) |
+| **Arquivos grandes** | Top 30 arquivos > 500 MB no `$HOME` (via `mdfind`), excluindo `node_modules/`, `.git/`, envs virtuais, bundles (`*.app`, `*.photoslibrary`, etc.), `Library/Containers/com.docker.docker/` e `Library/CloudStorage/` |
+
+---
+
+## Como fica seguro
+
+Cinco garantias, aplicadas em **todo** delete:
+
+1. **Whitelist de paths** — só `$HOME`, `/Applications`, `/opt/homebrew`. Fora disso, `assertAllowed()` nega.
+2. **Nunca `rm -rf`** — só `shell.trashItem` (nativo macOS). Sempre restaurável.
+3. **`execFile`, nunca `exec`** — args como array, zero interpolação em shell (sem risco de injection).
+4. **Re-scan antes de limpar** — o cleaner re-executa o scan antes de agir. Renderer só envia IDs, nunca dados stale.
+5. **Preview obrigatório na UI** — nenhum botão dispara clean sem passar pelo `PreviewDialog`.
+
+Extras:
+- Docker.raw marcado `cleanable: false` (é sparse — não faz sentido "deletar")
+- Se o plist do wallpaper estiver corrompido, o cleaner preserva **tudo** por precaução
+- History log é best-effort — falha nele não aborta cleanup nem afeta bytes liberados reportados
+
+---
+
+## Desenvolvimento
+
+<details>
+<summary><b>Setup, workflow e arquitetura</b></summary>
+
+### Setup
 ```bash
-cd ~/disk-janitor
-pnpm dev
+git clone <repo>
+cd disk-janitor
+pnpm install
 ```
 
-- **Alterou renderer** (`.tsx`, `.css`)? A janela atualiza sozinha, sem perder estado.
-- **Alterou main/preload** (`src/main/**`, `src/preload/**`, `src/shared/**`)? O electron-vite rebuilda e reinicia a janela.
-- **Adicionou dependência** ou o main não pegou a mudança? Reinicie o dev:
-  ```bash
-  pkill -f "electron-vite.js dev" ; pkill -f "disk-janitor.*Electron"
-  pnpm dev
-  ```
+### Scripts
 
-### B) Atualizando o app instalado em `/Applications/`
-Quando terminar as mudanças e quiser refletir no app que abre pelo Launchpad, empacote de novo:
+| Comando | O que faz |
+|---|---|
+| `pnpm dev` | Dev com HMR. Renderer recarrega ao salvar; main/preload rebuildam auto. |
+| `pnpm typecheck` | `tsc --noEmit` em main+preload e renderer. |
+| `pnpm build` | electron-vite build (gera `out/`, sem empacotar). |
+| `pnpm dist` | Build + `electron-builder --mac --arm64 --dir` → `.app`. |
 
+### Fluxo — depois de alterar código
+
+**Iterando (várias mudanças por minuto):**
 ```bash
-cd ~/disk-janitor
-pkill -f "Disk Janitor"                                              # fecha se estiver aberto
-pnpm dist                                                            # build + electron-builder
-codesign --deep --force --sign - "dist/mac-arm64/Disk Janitor.app"   # ad-hoc sign (obrigatório em Apple Silicon)
+pnpm dev   # HMR renderer, rebuild auto main/preload
+```
+Se o main não pegar: `pkill -f "electron-vite.js dev" ; pkill -f "disk-janitor.*Electron" && pnpm dev`
+
+**Refletir no app instalado em `/Applications/`:**
+```bash
+pkill -f "Disk Janitor"
+pnpm dist
+codesign --deep --force --sign - "dist/mac-arm64/Disk Janitor.app"
 ditto "dist/mac-arm64/Disk Janitor.app" "/Applications/Disk Janitor.app"
-open "/Applications/Disk Janitor.app"                                # verifica
+open "/Applications/Disk Janitor.app"
 ```
 
-Se quiser um one-liner pra colocar no `~/.zshrc` como alias:
+Alias sugerido pro `~/.zshrc`:
 ```bash
 alias dj-update='cd ~/disk-janitor && pkill -f "Disk Janitor"; pnpm dist && codesign --deep --force --sign - "dist/mac-arm64/Disk Janitor.app" && ditto "dist/mac-arm64/Disk Janitor.app" "/Applications/Disk Janitor.app" && open "/Applications/Disk Janitor.app"'
 ```
 
-### C) Validando antes de empacotar
-```bash
-pnpm typecheck   # tsc --noEmit em main+preload e renderer
-pnpm build       # electron-vite build (só gera out/, não empacota)
-```
+### Arquitetura
 
-### Cheatsheet
-| Situação | Comando |
-|---|---|
-| Instalar deps (1ª vez ou após mudar package.json) | `pnpm install` |
-| Desenvolver com HMR | `pnpm dev` |
-| Verificar TS sem rodar | `pnpm typecheck` |
-| Build sem empacotar (out/) | `pnpm build` |
-| Empacotar `.app` (dist/) | `pnpm dist` |
-| Atualizar app em /Applications | ver seção B acima |
-| Ver histórico de limpezas | Botão **Histórico** no header do app |
-| Restaurar algo apagado | Abrir Lixeira do macOS, clicar direito → Colocar de volta |
-
----
-
-## Arquitetura
-
-**Processo principal (Node) ↔ preload (bridge) ↔ renderer (React)**, com contratos Zod compartilhados como fonte de verdade.
+**Processo principal (Node) ↔ preload (bridge) ↔ renderer (React)**, com contratos Zod compartilhados.
 
 ```
 src/
-├── main/                      # processo Node do Electron
-│   ├── index.ts               # bootstrap + BrowserWindow + dock icon
-│   ├── ipc/                   # handlers registrados via ipcMain.handle
-│   │   ├── scan.handler.ts
-│   │   ├── clean.handler.ts   # emite eventos de progresso via event.sender.send
-│   │   └── history.handler.ts
-│   ├── domain/                # 100% TS puro, sem Electron → testável
-│   │   ├── categories.ts      # catálogo (meta + scan + cleanItem por categoria)
-│   │   ├── scanner.ts         # orquestra scan (chama category.scan e agrega)
-│   │   ├── cleaner.ts         # orquestra clean (re-scan + progress + history)
-│   │   ├── safety.ts          # expandPath + assertAllowed (whitelist)
-│   │   ├── trash.ts           # shell.trashItem + trashChildren
-│   │   └── history.ts         # JSONL append + read
-│   └── infra/                 # bordas de sistema (child_process, fs, mdls, mdfind)
-│       ├── shell.ts           # execFile promisificado (nunca exec)
-│       ├── df.ts              # parse `df -k`
-│       ├── du.ts              # parse `du -sk` ou stat pra sparse files
-│       ├── docker.ts          # docker system df/prune + parse
-│       ├── wallpaper.ts       # detecta wallpaper ativo (plutil → json)
-│       ├── appCaches.ts       # helper genérico Electron cache dirs
-│       ├── apps.ts            # scan /Applications via mdls
-│       ├── downloads.ts       # scan ~/Downloads por instaladores antigos
-│       └── largeFiles.ts      # mdfind + skip list
-│
-├── preload/
-│   └── bridge.ts              # expõe API mínima via contextBridge
-│
-├── shared/                    # fonte de verdade (importado por main e renderer)
-│   ├── ipc-contract.ts        # schemas Zod + IpcChannel/IpcEvent enums
-│   └── types.ts               # re-export de tipos
-│
-└── renderer/                  # UI React
-    ├── App.tsx                # roteamento simples: dashboard vs categoria
-    ├── main.tsx               # bootstrap createRoot
-    ├── index.css              # tokens de tema + tailwind
-    ├── env.d.ts               # tipa window.janitor
-    ├── views/
-    │   ├── Dashboard.tsx      # gauge + grid de categorias
-    │   ├── CategoryView.tsx   # tabela + seleção + preview + limpeza
-    │   └── HistoryDrawer.tsx  # painel lateral com histórico
-    ├── components/
-    │   ├── Logo.tsx           # SVG inline (aceita withBackground)
-    │   ├── DiskGauge.tsx      # barra usado/livre com cor por tier
-    │   ├── CategoryCard.tsx   # card do dashboard
-    │   ├── SafetyBadge.tsx    # badge de tier
-    │   ├── CleanupBar.tsx     # rodapé fixo com contadores + ações
-    │   ├── PreviewDialog.tsx  # modal de confirmação
-    │   ├── ProgressOverlay.tsx# overlay durante limpeza
-    │   └── ui/                # shadcn primitives (button, card, badge, checkbox, dialog)
-    ├── store/                 # Zustand slices
-    │   ├── scan.store.ts      # disco, categorias, scans, progresso, histórico
-    │   └── selection.store.ts # Sets de itens selecionados por categoria
-    └── lib/
-        ├── format.ts          # formatBytes/percent/date
-        └── utils.ts           # cn helper (clsx + twMerge)
+├── main/                # processo Node do Electron
+│   ├── index.ts         # bootstrap + BrowserWindow + dock icon
+│   ├── ipc/             # handlers via ipcMain.handle
+│   ├── domain/          # TS puro (categorias, scanner, cleaner, safety, trash, history)
+│   └── infra/           # bordas de sistema (shell, df, du, docker, mdfind, mdls, plutil)
+├── preload/bridge.ts    # API tipada via contextBridge
+├── shared/              # Zod schemas (fonte de verdade)
+└── renderer/            # UI React (views, components, store Zustand, hooks)
 ```
 
-**Princípios**
-- **IPC como contrato**: `shared/ipc-contract.ts` define schemas Zod. Main valida entrada com `.parse()`. Renderer importa os tipos. Se o schema mudar, TS quebra os dois lados.
-- **Feature-first no renderer**, layer-first no main (domain / infra / ipc).
-- **Não escrevemos "utils"**. Cada função mora perto do domínio dela.
-- **Sem comentários explicando o QUE o código faz** — nomes fazem isso. Só documentamos aqui.
+**Princípios:**
+- **IPC como contrato**: `shared/ipc-contract.ts` é fonte de verdade. Se mudar, TS quebra os dois lados.
+- **`domain/` é puro TS.** Nenhum import de Electron/fs/child_process. I/O vai em `infra/`.
+- **Feature-first no renderer.** Componentes shadcn em `components/ui/` (copiados, não instalados via CLI).
+- **Sem `utils.ts`.** Cada função mora perto do domínio dela.
+- **Sem comentários explicando O QUE o código faz.** Nomes claros fazem isso.
 
----
+### Adicionar uma categoria
 
-## Modelo de segurança
+Único extension point: `src/main/domain/categories.ts`. Não precisa mexer em UI, IPC ou preload.
 
-Cinco garantias, não-negociáveis:
-
-1. **Whitelist de paths** — `assertAllowed()` bloqueia qualquer path fora de `$HOME`, `/Applications` ou `/opt/homebrew`. Chamada antes de qualquer trashPath.
-2. **Nunca `rm -rf`** — toda deleção usa `shell.trashItem` do Electron (nativo do macOS). Restaurável pela Lixeira enquanto ela não for esvaziada.
-3. **`execFile`, nunca `exec`** — sem string interpolation em shell (evita injeção). Args passados como array.
-4. **Re-scan antes de limpar** — o cleaner re-executa o scan da categoria antes de agir. Renderer só envia `itemIds`, nunca dados stale.
-5. **Preview obrigatório** — a UI só chama `cleanCategory` após confirmação explícita no `PreviewDialog`.
-
-Bonus:
-- Docker.raw marcado `cleanable: false` (é sparse — não faz sentido "deletar")
-- Wallpaper cleaner preserva o wallpaper ativo. Se o plist estiver corrompido, preserva **tudo** por precaução.
-- History é best-effort — falha nele não aborta cleanup nem afeta bytes liberados reportados.
-
----
-
-## Estender: adicionar uma categoria
-
-Toda a lógica mora em `src/main/domain/categories.ts`. Uma categoria é:
-
-```ts
-type Category = {
-  meta: CategoryMeta
-  scan: () => Promise<ScanOutput>
-  cleanItem: (item: ScanItem) => Promise<number>  // retorna bytes liberados
-}
-```
-
-**Passo a passo:**
-
-1. Definir os targets (ou implementar scan customizado). Ex:
-   ```ts
-   const MY_TARGETS: Target[] = [
-     { id: 'my-app', label: 'Meu App', path: '~/Library/Caches/com.myapp' },
-   ]
-   ```
-2. Adicionar ao array `CATEGORIES`:
+Passo a passo:
+1. (Opcional) Adicione scanner em `src/main/infra/<nome>.ts`
+2. Importe em `categories.ts`
+3. Adicione ao array `CATEGORIES`:
    ```ts
    {
-     meta: {
-       id: 'my-category',
-       label: 'Minha categoria',
-       description: 'O que ela faz.',
-       tier: 'safe',        // 'safe' | 'caution' | 'review'
-       icon: 'terminal',    // veja ICONS em CategoryCard.tsx
-     },
-     scan: () => measureTargets(MY_TARGETS),
-     cleanItem: (item) => trashChildren(item.path),
-   },
+     meta: { id, label, description, tier, icon },
+     scan: () => scanFn(),
+     cleanItem: (item) => trashChildren(item.path),  // ou trashPath / custom
+   }
    ```
-3. Se precisar de ícone novo, adicionar em `src/renderer/components/CategoryCard.tsx` no map `ICONS`.
+4. Se ícone novo, adicione ao map `ICONS` em `components/CategoryCard.tsx`
+5. `pnpm typecheck` + restart `pnpm dev`
 
-Não precisa mexer em UI, IPC nem preload — o resto é automático.
+**Regras não-negociáveis** (ver `CLAUDE.md`): sempre `trashPath`/`trashChildren`, nunca `fs.unlink`/`rm`. Sempre `execFile` via `infra/shell.ts`.
+
+</details>
 
 ---
 
-## Stack
+## Tech stack
 
-- **Runtime**: Electron 34 + electron-vite 3
-- **UI**: React 19 + TypeScript 5.7 + Tailwind 3.4 + shadcn primitives (Radix Dialog/Checkbox) + Sonner (toasts) + Lucide icons
-- **State**: Zustand 5
-- **Contratos**: Zod 3
-- **Packaging**: electron-builder 26 (target `dir`, ad-hoc signed)
-- **Node**: 24 · **pnpm**: 10
+<table>
+  <tr><td><b>Runtime</b></td><td>Electron 34 · electron-vite 3 · Node 24 · pnpm 10</td></tr>
+  <tr><td><b>UI</b></td><td>React 19 · TypeScript 5.7 · Tailwind 3.4 · shadcn primitives (Radix) · Sonner · Lucide</td></tr>
+  <tr><td><b>State</b></td><td>Zustand 5</td></tr>
+  <tr><td><b>Contratos</b></td><td>Zod 3</td></tr>
+  <tr><td><b>Packaging</b></td><td>electron-builder 26 (ad-hoc signed)</td></tr>
+</table>
 
-**Bundle final**
-- main: ~27 KB · preload: ~3 KB · renderer: ~880 KB · `.app`: ~271 MB (Electron runtime é o gordo)
+**Tamanhos:** main ~27 KB · preload ~3 KB · renderer ~880 KB · `.app` ~271 MB (Electron runtime).
 
 ---
 
 ## Roadmap
 
 **Feito**
-- M1 — Bootstrap + Dashboard + DiskGauge + scan read-only
-- M2 — Preview + clean via Lixeira + progress em tempo real + history + toasts
-- M3 — Tier caution: caches Electron por app + downloads antigos
-- M4 — Tier review: apps não usados + arquivos grandes
-- Logo + ícone + packaging + instalação em `/Applications`
+- ✅ Dashboard com gauge + grid de categorias
+- ✅ Fluxo preview → confirmar → progresso em tempo real
+- ✅ 8 categorias em 3 tiers de segurança
+- ✅ Envio pra Lixeira (nunca `rm -rf`)
+- ✅ History log persistente
+- ✅ Logo + ícone + packaging + instalação em `/Applications`
 
 **Poderia vir depois**
-- Time Machine snapshots locais (precisa `sudo`, exige prompt admin nativo)
-- Assinatura + notarization pra distribuição fora da máquina (DMG + Apple Developer ID)
-- Whitelist configurável de apps Electron adicionais
-- Análise incremental do `$HOME` (treemap tipo GrandPerspective)
-- Restore rápido do último cleanup via history log
+- [ ] Time Machine snapshots locais (precisa `sudo` interativo)
+- [ ] Assinatura + notarization pra distribuição pública (Apple Developer ID)
+- [ ] Whitelist configurável de apps Electron adicionais
+- [ ] Análise incremental do `$HOME` estilo treemap (GrandPerspective)
+- [ ] Restore rápido do último cleanup via history log
+
+---
+
+## Licença
+
+Projeto pessoal, sem licença explícita ainda. Se planeja distribuir/usar publicamente, adicione MIT ou Apache 2.0.
+
+---
+
+<p align="center">
+  Feito com <a href="https://claude.com/claude-code">Claude Code</a>.
+</p>
