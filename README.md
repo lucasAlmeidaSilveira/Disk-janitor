@@ -1,8 +1,13 @@
-# Disk Janitor
+<p align="center">
+  <img src="resources/icon.png" width="128" alt="Disk Janitor" />
+</p>
 
-App macOS local para diagnosticar e limpar disco por categorias, com tiers de segurança e fluxo *preview → confirmar*. Nada é apagado direto — tudo vai pra Lixeira, restaurável enquanto ela não for esvaziada.
+<h1 align="center">Disk Janitor</h1>
 
-![Logo](resources/icon.png)
+<p align="center">
+  App macOS local para diagnosticar e limpar disco por categorias, com tiers de segurança e fluxo <em>preview → confirmar</em>.<br/>
+  Nada é apagado direto — tudo vai pra Lixeira, restaurável enquanto ela não for esvaziada.
+</p>
 
 ---
 
