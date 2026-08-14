@@ -1,9 +1,34 @@
+# Dependencies
 node_modules
+.pnpm-store
+
+# Build output
 out
 dist
+
+# Icon intermediate (icon.svg is source; icon.png/.icns are checked in for build)
+resources/icon.iconset
+
+# macOS
 .DS_Store
+
+# Logs
 *.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Env / secrets
 .env
 .env.local
+.env.*.local
+
+# Editors
 .vscode
 .idea
+*.swp
+*.swo
+
+# Claude Code — personal overrides only (shared config is committed)
+.claude/settings.local.json
+.claude/logs
+.claude/history
