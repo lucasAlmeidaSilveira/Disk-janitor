@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 12% 6%;
+    --foreground: 210 20% 96%;
+
+    --card: 240 10% 9%;
+    --card-foreground: 210 20% 96%;
+
+    --muted: 240 8% 14%;
+    --muted-foreground: 220 10% 62%;
+
+    --primary: 210 100% 62%;
+    --primary-foreground: 240 12% 6%;
+
+    --secondary: 240 8% 16%;
+    --secondary-foreground: 210 20% 96%;
+
+    --accent: 240 8% 18%;
+    --accent-foreground: 210 20% 96%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 240 6% 18%;
+    --input: 240 6% 18%;
+    --ring: 210 100% 62%;
+
+    --safe: 145 70% 48%;
+    --caution: 40 92% 58%;
+    --review: 0 72% 60%;
+
+    --radius: 12px;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: radial-gradient(
+        ellipse 900px 500px at 50% -10%,
+        hsl(210 80% 20% / 0.35),
+        transparent 60%
+      ),
+      hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  button {
+    -webkit-app-region: no-drag;
+  }
+}
+
+@layer utilities {
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+}

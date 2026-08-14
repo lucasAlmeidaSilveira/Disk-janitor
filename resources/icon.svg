@@ -1,0 +1,41 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827" />
+      <stop offset="1" stop-color="#050914" />
+    </linearGradient>
+    <radialGradient id="shine" cx="0.3" cy="0.15" r="0.75">
+      <stop offset="0" stop-color="#3B9BFF" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#3B9BFF" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="ring" x1="200" y1="200" x2="900" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7CC9FF" />
+      <stop offset="0.55" stop-color="#3B9BFF" />
+      <stop offset="1" stop-color="#0A5BD1" />
+    </linearGradient>
+    <radialGradient id="sparkGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" />
+      <stop offset="1" stop-color="#7CC9FF" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="228" fill="url(#bg)" />
+  <rect width="1024" height="1024" rx="228" fill="url(#shine)" />
+
+  <g>
+    <path
+      d="M 832 512 A 320 320 0 1 1 512 192"
+      stroke="url(#ring)"
+      stroke-width="112"
+      stroke-linecap="round"
+      fill="none"
+    />
+  </g>
+
+  <g transform="translate(738 286)">
+    <circle r="150" fill="url(#sparkGlow)" opacity="0.55" />
+    <path d="M 0 -108 Q 22 0 0 108 Q -22 0 0 -108 Z" fill="#FFFFFF" />
+    <path d="M -108 0 Q 0 -22 108 0 Q 0 22 -108 0 Z" fill="#FFFFFF" />
+    <circle r="18" fill="#FFFFFF" />
+  </g>
+</svg>
